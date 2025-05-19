@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+group = 'com.eps'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'shared'
+
+            from components.java
+        }
+    }
+    // other settings of publication
+    repositories {
+        maven {
+            name = "Gitea"
+            url = uri("http://gitea.tt1.eps.com:8080/api/packages/TT1/maven")
+            allowInsecureProtocol = true
+
+
+            credentials(HttpHeaderCredentials) {
+                name = "Authorization"
+                def token = System.getenv("GITEA_TOKEN") ?: project.findProperty("giteaToken")
+                value = "token " + token
+            }
+
+            authentication {
+                header(HttpHeaderAuthentication)
+            }
+        }
+    }
+}
+
+dependencies {
+    // Cấu hình web
+    implementation 'org.springframework:spring-webmvc:6.1.14'
+    // Thư vện sử dụng Servlet
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+    // Thư viện tạo mã nh Getter Setter, hàm khởi tạo,
+    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+    // Thư viện tạo mã UUID v1 - v7
+    implementation("com.github.f4b6a3:uuid-creator:6.1.1")
+    // Thư viện swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
+    // Thư viện sử dụng JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.4.5'
+    // Thư viện serializable dữ liệu
+    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.18.3'
+    // Giao tiếp các service qua http
+    implementation("org.springframework.cloud:spring-cloud-starter-openfeign:4.2.1")
+    // Retry các service lỗi
+    implementation("org.springframework.retry:spring-retry:2.0.11")
+}
