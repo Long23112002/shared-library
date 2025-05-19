@@ -18,30 +18,17 @@ tasks.withType(JavaCompile).configureEach {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifactId = 'shared'
-
             from components.java
+            groupId = 'com.eps'
+            artifactId = 'eps-commons'
+            version = '1.0.0'
         }
     }
-    // other settings of publication
-    repositories {
-        maven {
-            name = "Gitea"
-            url = uri("http://gitea.tt1.eps.com:8080/api/packages/TT1/maven")
-            allowInsecureProtocol = true
+}
 
-
-            credentials(HttpHeaderCredentials) {
-                name = "Authorization"
-                def token = System.getenv("GITEA_TOKEN") ?: project.findProperty("giteaToken")
-                value = "token " + token
-            }
-
-            authentication {
-                header(HttpHeaderAuthentication)
-            }
-        }
-    }
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
