@@ -19,12 +19,10 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            groupId = 'com.eps'
-            artifactId = 'eps-commons'
-            version = '1.0.0'
         }
     }
 }
+
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
