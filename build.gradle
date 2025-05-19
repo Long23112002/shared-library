@@ -4,8 +4,8 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'com.eps'
-version = '1.0.0'
+group = project.hasProperty('group') ? project.getProperty('group') : 'com.eps'
+version = project.hasProperty('version') ? project.getProperty('version') : '1.0.0'
 
 repositories {
     mavenCentral()
@@ -15,7 +15,6 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
@@ -23,23 +22,27 @@ java {
 }
 
 dependencies {
-    // Cấu hình web
+    // Các dependencies giữ nguyên
     implementation 'org.springframework:spring-webmvc:6.1.14'
-    // Thư vện sử dụng Servlet
     compileOnly 'jakarta.servlet:jakarta.servlet-api:5.0.0'
-    // Thư viện tạo mã nh Getter Setter, hàm khởi tạo,
     compileOnly 'org.projectlombok:lombok:1.18.38'
     annotationProcessor 'org.projectlombok:lombok:1.18.38'
-    // Thư viện tạo mã UUID v1 - v7
     implementation("com.github.f4b6a3:uuid-creator:6.1.1")
-    // Thư viện swagger
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
-    // Thư viện sử dụng JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.4.5'
-    // Thư viện serializable dữ liệu
     implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.18.3'
-    // Giao tiếp các service qua http
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign:4.2.1")
-    // Retry các service lỗi
     implementation("org.springframework.retry:spring-retry:2.0.11")
+}
+
+// Cấu hình publishing để publish artifact ra mavenLocal
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = project.group
+            artifactId = 'shared'
+            version = project.version
+        }
+    }
 }
