@@ -29,7 +29,7 @@ public interface IUpdatePersistence<E, ID> extends ICrudPersistenceProvider<E, I
 
   default void mappingUpdateAuditingEntity(HeaderContext context, E entity) {
     if (context != null) {
-      GenericTypeUtils.updateData(entity, "nguoiChinhSua", context.getTen());
+      GenericTypeUtils.updateData(entity, "createdBy", context.getName());
     }
   }
 }

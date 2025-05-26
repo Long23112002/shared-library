@@ -27,8 +27,8 @@ public interface ICreatePersistence<E, ID> extends ICrudPersistenceProvider<E, I
   default void mappingCreateAuditingEntity(HeaderContext context, E entity) {
     if (context != null) {
       GenericTypeUtils.updateData(entity, "id", UuidCreator.getTimeOrderedEpoch());
-      GenericTypeUtils.updateData(entity, "nguoiTao", context.getTen());
-      GenericTypeUtils.updateData(entity, "nguoiChinhSua", context.getTen());
+      GenericTypeUtils.updateData(entity, "createdBy", context.getName());
+      GenericTypeUtils.updateData(entity, "updatedBy", context.getName());
     }
   }
 }
