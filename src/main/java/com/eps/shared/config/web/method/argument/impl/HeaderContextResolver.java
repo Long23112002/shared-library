@@ -37,9 +37,9 @@ public class HeaderContextResolver implements IMethodArgument {
 
     context.setExtraData(JsonParserUtils.toStringMap(user));
 
-    context.setTaiKhoanId(context.getExtraData().get("taiKhoanId"));
-    context.setTaiKhoan(context.getExtraData().get("taiKhoan"));
-    context.setTen(context.getExtraData().get("ten"));
+    context.setAccountId(context.getExtraData().get("accountId"));
+    context.setUsername(context.getExtraData().get("username"));
+    context.setName(context.getExtraData().get("name"));
     context.setEmail(context.getExtraData().get("email"));
     context.setTraceId(UUID.randomUUID().toString());
 
