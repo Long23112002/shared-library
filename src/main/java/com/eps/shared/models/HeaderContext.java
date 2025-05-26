@@ -6,9 +6,9 @@ import lombok.Data;
 
 @Data
 public class HeaderContext {
-  private String taiKhoanId;
-  private String ten;
-  private String taiKhoan;
+  private String accountId;
+  private String name;
+  private String username;
   private String email;
   private String traceId;
 

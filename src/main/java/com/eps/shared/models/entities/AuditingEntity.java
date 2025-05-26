@@ -2,7 +2,6 @@ package com.eps.shared.models.entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -12,11 +11,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Getter
 public class AuditingEntity {
-  @Id private UUID id;
+  @Id private Long id;
 
-  private String nguoiTao;
-  private String nguoiChinhSua;
+  private String createdBy;
+  private String updatedBy;
 
-  @CreationTimestamp private LocalDateTime ngayTao;
-  @UpdateTimestamp private LocalDateTime ngayChinhSua;
+  @CreationTimestamp private LocalDateTime createdAt;
+  @UpdateTimestamp private LocalDateTime updatedAt;
 }
