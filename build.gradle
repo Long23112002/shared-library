@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+group = project.hasProperty('group') ? project.getProperty('group') : 'com.eps'
+version = project.hasProperty('version') ? project.getProperty('version') : '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+dependencies {
+    // Các dependencies giữ nguyên
+    implementation 'org.springframework:spring-webmvc:6.1.14'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+    implementation("com.github.f4b6a3:uuid-creator:6.1.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.4.5'
+    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.18.3'
+    implementation("org.springframework.cloud:spring-cloud-starter-openfeign:4.2.1")
+    implementation("org.springframework.retry:spring-retry:2.0.11")
+}
+
+// Cấu hình publishing để publish artifact ra mavenLocal
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = project.group
+            artifactId = 'shared'
+            version = project.version
+        }
+    }
+}
