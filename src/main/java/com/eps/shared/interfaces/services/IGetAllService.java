@@ -2,7 +2,7 @@ package com.eps.shared.interfaces.services;
 
 import com.eps.shared.interfaces.persistence.IJpaGetAllPersistence;
 import com.eps.shared.models.HeaderContext;
-import com.eps.shared.utils.*;
+import com.eps.shared.models.enums.PositionType;
 import com.eps.shared.utils.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -12,6 +12,7 @@ import jakarta.persistence.metamodel.Attribute;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -60,7 +61,7 @@ public interface IGetAllService<E, RES> {
   }
 
   default RES mappingPageResponse(HeaderContext context, E item) {
-    RES resItem = GenericTypeUtils.getNewInstance(this);
+    RES resItem = GenericTypeUtils.getNewInstance(this, IGetAllService.class, PositionType.LAST);
 
     FnCommon.copyProperties(resItem, item);
 
@@ -172,8 +173,12 @@ public interface IGetAllService<E, RES> {
       String search) {
     String[] searchFieldNames = getSearchFieldNames();
     List<Predicate> searchPredicates = new ArrayList<>();
+
+    Set<String> fieldNameSet =
+        fieldNames.stream().map(Attribute::getName).collect(Collectors.toSet());
+
     for (String fieldName : searchFieldNames) {
-      boolean isSearch = fieldNames.contains(fieldName);
+      boolean isSearch = fieldNameSet.contains(fieldName);
       if (isSearch && StringUtils.hasLength(search)) {
         Predicate searchPredicate =
             cb.like(cb.lower(root.get(fieldName)), "%" + search.toLowerCase() + "%");

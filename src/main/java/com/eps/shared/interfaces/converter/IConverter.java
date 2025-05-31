@@ -16,6 +16,9 @@ public interface IConverter<E extends Enum<E> & IEnum> extends AttributeConverte
 
   @Override
   default E convertToEntityAttribute(Byte dbData) {
+    if (dbData == null) {
+      return null;
+    }
     return EnumUtils.fromValue(getGenericEnumClass(), dbData);
   }
 

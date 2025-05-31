@@ -1,8 +1,7 @@
 package com.eps.shared.utils;
 
+import com.eps.shared.models.enums.PositionType;
 import java.lang.reflect.*;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ReflectionUtils;
 
@@ -20,273 +19,105 @@ public class GenericTypeUtils {
     }
   }
 
-  /**
-   * Tạo instance mới của entity class thông qua reflection. Phương thức này sử dụng cơ chế
-   * SuperTypeTokenHolder để giải quyết vấn đề Type Erasure.
-   *
-   * @return Instance mới của entity class
-   * @throws RuntimeException nếu không thể tạo instance mới
-   */
   @SuppressWarnings("unchecked")
-  public static <T, S> T getNewInstance(S superClass) {
+  public static <T, S> T getNewInstance(S superClass, Class<?> clazz, PositionType type) {
     try {
-      // Lấy class thông qua helper cải tiến
-      Class<T> entityClass = getEntityClassFromGeneric(superClass);
+      Class<?> currentClass = superClass.getClass();
+      Type targetGenericType = findGenericTypeInHierarchy(currentClass, clazz);
 
-      if (entityClass == null) {
-        throw new RuntimeException(
-            "Không thể phát hiện entity class (E). Hãy đảm bảo rằng interface được triển khai với generic type cụ thể.");
+      if (targetGenericType instanceof ParameterizedType parameterizedType) {
+        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+
+        int index =
+            type.equals(PositionType.LAST) ? actualTypeArguments.length - 1 : type.getValue();
+        if (index < actualTypeArguments.length) {
+          Type targetType = actualTypeArguments[index];
+
+          if (targetType instanceof Class) {
+            Class<T> targetClass = (Class<T>) targetType;
+
+            // Tạo instance mới bằng constructor mặc định
+            Constructor<T> constructor = targetClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+          }
+        }
       }
 
-      // Log để debug
-      log.debug("Đã phát hiện entity class: " + entityClass.getName());
+      throw new IllegalArgumentException(
+          "Không thể xác định kiểu generic tại vị trí "
+              + type
+              + " cho interface "
+              + clazz.getSimpleName());
 
-      // Tạo instance mới thông qua constructor không tham số
-      return entityClass.getDeclaredConstructor().newInstance();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      throw new RuntimeException(
-          "Không thể tạo entity instance mới. Hãy đảm bảo entity class có constructor không tham số và có thể truy cập.",
-          e);
     } catch (Exception e) {
-      throw new RuntimeException(
-          "Lỗi không xác định khi tạo entity instance mới: " + e.getMessage(), e);
+      throw new RuntimeException("Lỗi khi tạo instance: " + e.getMessage(), e);
     }
   }
 
-  /**
-   * Phương thức cải tiến để lấy entity class từ generic type. Sử dụng nhiều phương pháp bao gồm
-   * type token và generic supertype scanning.
-   *
-   * @return Class của entity generic type E, hoặc null nếu không tìm thấy
-   */
-  @SuppressWarnings("unchecked")
-  public static <T, S> Class<T> getEntityClassFromGeneric(S superClass) {
-    Class<?> implementationClass = superClass.getClass();
-
-    // Cache lưu trữ generic type mappings để tối ưu hiệu suất
-    Map<TypeVariable<?>, Type> typeVariableMap = new HashMap<>();
-
-    // Lấy target interface với generic type E
-    Class<?> targetInterface = findTargetInterface(implementationClass);
-
-    if (targetInterface == null) {
-      log.debug("WARNING: Không tìm thấy target interface có generic type E");
-      return null;
-    }
-
-    // Lấy TypeVariable đại diện cho E trong target interface
-    TypeVariable<?>[] typeParams = targetInterface.getTypeParameters();
-    if (typeParams.length == 0) {
-      log.debug("WARNING: Target interface không có type parameters");
-      return null;
-    }
-
-    TypeVariable<?> entityTypeVar = typeParams[0]; // Giả sử E là type parameter đầu tiên
-
-    // Tìm kiếm binding của TypeVariable trong implementation class
-    populateTypeVariableMap(implementationClass, typeVariableMap);
-
-    // Truy xuất actual type cho E
-    Type actualType = typeVariableMap.get(entityTypeVar);
-
-    if (actualType == null) {
-      log.debug("WARNING: Không thể ánh xạ TypeVariable đến actual type");
-      // Thử phương pháp khác nếu phương pháp trên thất bại
-      return findEntityClassFallback(implementationClass, targetInterface);
-    }
-
-    // Chuyển đổi actualType thành Class
-    if (actualType instanceof Class) {
-      return (Class<T>) actualType;
-    } else if (actualType instanceof ParameterizedType) {
-      Type rawType = ((ParameterizedType) actualType).getRawType();
-      if (rawType instanceof Class) {
-        return (Class<T>) rawType;
-      }
-    }
-
-    // Một phương pháp fallback khác
-    return findEntityClassFallback(implementationClass, targetInterface);
-  }
-
-  /**
-   * Phương pháp dự phòng để tìm entity class. Quét trực tiếp thông qua các interface đã triển khai.
-   */
-  @SuppressWarnings("unchecked")
-  static <T> Class<T> findEntityClassFallback(
-      Class<?> implementationClass, Class<?> targetInterface) {
-    // Duyệt qua tất cả các interface đã triển khai
-    for (Type genericInterface : implementationClass.getGenericInterfaces()) {
-      if (genericInterface instanceof ParameterizedType) {
-        ParameterizedType paramType = (ParameterizedType) genericInterface;
-
-        if (paramType.getRawType().equals(targetInterface)) {
-          Type[] typeArgs = paramType.getActualTypeArguments();
-          if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
-            log.debug(
-                "Đã tìm thấy entity class thông qua fallback: "
-                    + ((Class<?>) typeArgs[0]).getName());
-            return (Class<T>) typeArgs[0];
-          }
+  // Phương thức helper để tìm kiếm generic type trong toàn bộ hierarchy
+  private static Type findGenericTypeInHierarchy(Class<?> startClass, Class<?> targetInterface) {
+    // Tìm trong superclass hierarchy
+    Class<?> currentClass = startClass;
+    while (currentClass != null) {
+      // Kiểm tra generic superclass
+      Type genericSuperclass = currentClass.getGenericSuperclass();
+      if (genericSuperclass instanceof ParameterizedType) {
+        ParameterizedType paramType = (ParameterizedType) genericSuperclass;
+        if (isAssignableFrom(targetInterface, (Class<?>) paramType.getRawType())) {
+          return genericSuperclass;
         }
       }
-    }
 
-    // Nếu không tìm thấy trong interface trực tiếp, thử class cha
-    Class<?> superClass = implementationClass.getSuperclass();
-    if (superClass != null && superClass != Object.class) {
-      // Kiểm tra class cha một cách đệ quy
-      return findEntityClassInSuperclass(superClass, targetInterface);
+      // Kiểm tra interfaces của class hiện tại
+      Type foundType = searchInInterfaces(currentClass.getGenericInterfaces(), targetInterface);
+      if (foundType != null) {
+        return foundType;
+      }
+
+      currentClass = currentClass.getSuperclass();
     }
 
     return null;
   }
 
-  /** Tìm kiếm entity class trong class cha. */
-  @SuppressWarnings("unchecked")
-  static <T> Class<T> findEntityClassInSuperclass(Class<?> superClass, Class<?> targetInterface) {
-    // Kiểm tra các interface của superclass
-    for (Type genericInterface : superClass.getGenericInterfaces()) {
-      if (genericInterface instanceof ParameterizedType) {
-        ParameterizedType paramType = (ParameterizedType) genericInterface;
+  // Tìm kiếm trong danh sách interfaces (bao gồm cả interface con)
+  private static Type searchInInterfaces(Type[] interfaces, Class<?> targetInterface) {
+    for (Type interfaceType : interfaces) {
+      if (interfaceType instanceof ParameterizedType) {
+        ParameterizedType paramType = (ParameterizedType) interfaceType;
+        Class<?> rawType = (Class<?>) paramType.getRawType();
 
-        if (paramType.getRawType().equals(targetInterface)) {
-          Type[] typeArgs = paramType.getActualTypeArguments();
-          if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
-            log.debug(
-                "Đã tìm thấy entity class trong superclass: " + ((Class<?>) typeArgs[0]).getName());
-            return (Class<T>) typeArgs[0];
-          }
+        // Kiểm tra trực tiếp
+        if (isAssignableFrom(targetInterface, rawType)) {
+          return interfaceType;
+        }
+
+        // Tìm kiếm recursive trong các interface cha
+        Type foundInParent = searchInInterfaces(rawType.getGenericInterfaces(), targetInterface);
+        if (foundInParent != null) {
+          return foundInParent;
+        }
+      } else if (interfaceType instanceof Class) {
+        Class<?> rawType = (Class<?>) interfaceType;
+
+        // Kiểm tra trực tiếp
+        if (isAssignableFrom(targetInterface, rawType)) {
+          return interfaceType;
+        }
+
+        // Tìm kiếm recursive trong các interface cha
+        Type foundInParent = searchInInterfaces(rawType.getGenericInterfaces(), targetInterface);
+        if (foundInParent != null) {
+          return foundInParent;
         }
       }
     }
-
-    // Tiếp tục lên class cha cao hơn
-    Class<?> parentSuperClass = superClass.getSuperclass();
-    if (parentSuperClass != null && parentSuperClass != Object.class) {
-      return findEntityClassInSuperclass(parentSuperClass, targetInterface);
-    }
-
     return null;
   }
 
-  /** Điền map với các ánh xạ từ TypeVariable đến concrete Type. */
-  static void populateTypeVariableMap(Class<?> clazz, Map<TypeVariable<?>, Type> typeVariableMap) {
-    // Xử lý các interface
-    for (Type genericInterface : clazz.getGenericInterfaces()) {
-      if (genericInterface instanceof ParameterizedType) {
-        ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
-        Class<?> interfaceClass = (Class<?>) parameterizedType.getRawType();
-        TypeVariable<?>[] typeParameters = interfaceClass.getTypeParameters();
-        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-
-        for (int i = 0; i < typeParameters.length; i++) {
-          if (i < actualTypeArguments.length) {
-            typeVariableMap.put(typeParameters[i], actualTypeArguments[i]);
-          }
-        }
-
-        // Xử lý các interface con
-        populateTypeVariableMapFromInterfaces(interfaceClass, typeVariableMap);
-      }
-    }
-
-    // Xử lý class cha
-    Type genericSuperclass = clazz.getGenericSuperclass();
-    if (genericSuperclass instanceof ParameterizedType) {
-      ParameterizedType parameterizedType = (ParameterizedType) genericSuperclass;
-      Class<?> superClass = (Class<?>) parameterizedType.getRawType();
-      TypeVariable<?>[] typeParameters = superClass.getTypeParameters();
-      Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-
-      for (int i = 0; i < typeParameters.length; i++) {
-        if (i < actualTypeArguments.length) {
-          typeVariableMap.put(typeParameters[i], actualTypeArguments[i]);
-        }
-      }
-
-      // Xử lý đệ quy lên class cha
-      populateTypeVariableMap(superClass, typeVariableMap);
-    }
-  }
-
-  /** Điền map với các ánh xạ TypeVariable từ các interface. */
-  static void populateTypeVariableMapFromInterfaces(
-      Class<?> interfaceClass, Map<TypeVariable<?>, Type> typeVariableMap) {
-    for (Type genericInterface : interfaceClass.getGenericInterfaces()) {
-      if (genericInterface instanceof ParameterizedType) {
-        ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
-        Class<?> parentInterface = (Class<?>) parameterizedType.getRawType();
-        TypeVariable<?>[] typeParameters = parentInterface.getTypeParameters();
-        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-
-        for (int i = 0; i < typeParameters.length; i++) {
-          if (i < actualTypeArguments.length) {
-            typeVariableMap.put(typeParameters[i], actualTypeArguments[i]);
-          }
-        }
-
-        // Xử lý đệ quy các interface cha
-        populateTypeVariableMapFromInterfaces(parentInterface, typeVariableMap);
-      }
-    }
-  }
-
-  /**
-   * Tìm interface đích chứa generic type E. Hàm này cần được tùy chỉnh theo cấu trúc interface cụ
-   * thể của bạn.
-   */
-  static Class<?> findTargetInterface(Class<?> implementationClass) {
-    // Danh sách các interface tiềm năng để kiểm tra
-    // Bạn cần thay đổi điều kiện này để phù hợp với interface của bạn
-
-    for (Class<?> iface : getAllInterfaces(implementationClass)) {
-      // Có thể chỉ định trực tiếp interface đích
-      // Thay thế dòng này bằng interface thực tế của bạn
-      if (iface.getSimpleName().contains("Service")
-          || iface.getSimpleName().contains("Repository")
-          || iface.getSimpleName().contains("Dao")) {
-
-        // Kiểm tra xem interface có ít nhất một type parameter không
-        if (iface.getTypeParameters().length > 0) {
-          log.debug("Đã tìm thấy target interface: " + iface.getName());
-          return iface;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /** Lấy tất cả các interface của một class, bao gồm cả interface kế thừa. */
-  static Class<?>[] getAllInterfaces(Class<?> cls) {
-    if (cls == null) {
-      return new Class[0];
-    }
-
-    // Tập hợp tất cả interface kế thừa
-    java.util.Set<Class<?>> interfacesFound = new java.util.LinkedHashSet<>();
-    getAllInterfaces(cls, interfacesFound);
-
-    return interfacesFound.toArray(new Class<?>[0]);
-  }
-
-  /** Lấy tất cả các interface của một class, theo cách đệ quy. */
-  static void getAllInterfaces(Class<?> cls, java.util.Set<Class<?>> interfacesFound) {
-    if (cls == null) {
-      return;
-    }
-
-    Class<?>[] interfaces = cls.getInterfaces();
-    for (Class<?> i : interfaces) {
-      if (interfacesFound.add(i)) {
-        getAllInterfaces(i, interfacesFound);
-      }
-    }
-
-    getAllInterfaces(cls.getSuperclass(), interfacesFound);
+  // Helper method để kiểm tra inheritance/implementation
+  private static boolean isAssignableFrom(Class<?> target, Class<?> candidate) {
+    return target.isAssignableFrom(candidate) || candidate.isAssignableFrom(target);
   }
 }

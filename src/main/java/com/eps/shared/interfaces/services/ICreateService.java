@@ -2,6 +2,7 @@ package com.eps.shared.interfaces.services;
 
 import com.eps.shared.interfaces.persistence.ICreatePersistence;
 import com.eps.shared.models.HeaderContext;
+import com.eps.shared.models.enums.PositionType;
 import com.eps.shared.utils.FnCommon;
 import com.eps.shared.utils.GenericTypeUtils;
 import java.util.function.BiFunction;
@@ -34,7 +35,7 @@ public interface ICreateService<E, ID, RES, REQ> extends IResponseMapper<E, RES>
       throw new IllegalArgumentException("createPersistence must not be null");
     }
 
-    E entity = GenericTypeUtils.getNewInstance(this); // Tạo entity mới bằng Reflection
+    E entity = GenericTypeUtils.getNewInstance(this, ICreateService.class, PositionType.FIRST);
 
     if (validationCreateHandler != null) {
       validationCreateHandler.accept(context, entity, request);
